@@ -26,6 +26,7 @@ import android.os.StrictMode.VmPolicy
 import androidx.multidex.MultiDex
 import dagger.android.AndroidInjector
 import dagger.android.support.DaggerApplication
+import org.mozilla.geckoview.GeckoRuntime
 import timber.log.Timber
 import xyz.wallpanel.app.di.DaggerApplicationComponent
 import xyz.wallpanel.app.utils.CrashlyticsDebugTree
@@ -35,6 +36,22 @@ import xyz.wallpanel.app.utils.WallpanelDebugTree
 
 class WallPanel : DaggerApplication() {
 
+    companion object {
+        @Volatile
+        private var geckoRuntime: GeckoRuntime? = null
+
+        /**
+         * GeckoRuntime may only be created once per process; this lazily creates
+         * and reuses a single instance for every GeckoSession in the app.
+         */
+        fun getGeckoRuntime(context: Context): GeckoRuntime {
+            return geckoRuntime ?: synchronized(this) {
+                geckoRuntime ?: GeckoRuntime.create(context.applicationContext).also {
+                    geckoRuntime = it
+                }
+            }
+        }
+    }
 
     override fun applicationInjector(): AndroidInjector<out DaggerApplication> {
         return DaggerApplicationComponent.builder().create(this)

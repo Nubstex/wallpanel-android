@@ -197,6 +197,12 @@ dependencies {
     // Logging
     implementation 'com.jakewharton.timber:timber:4.7.1'
 
+    // GeckoView (bundled web engine, replaces the system WebView)
+    implementation("org.mozilla.geckoview:geckoview:118.0.20231009140911") {
+        exclude module: 'snakeyaml'
+    }
+    implementation "org.yaml:snakeyaml:1.26:android"
+
     // Picasso image loading
     implementation 'com.squareup.picasso:picasso:2.71828'
 

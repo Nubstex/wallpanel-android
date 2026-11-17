@@ -1,6 +1,6 @@
 package xyz.wallpanel.app.ui.views
 
-import android.webkit.PermissionRequest
+import org.mozilla.geckoview.GeckoSession
 
 interface WebClientCallback {
     fun askForWebkitPermission(permission: String, requestCode: Int)
@@ -9,7 +9,11 @@ interface WebClientCallback {
 
     fun pageLoadComplete(url: String)
 
-    fun setWebkitPermissionRequest(request: PermissionRequest?)
+    fun setPendingMediaPermission(
+        callback: GeckoSession.PermissionDelegate.MediaCallback?,
+        video: Array<GeckoSession.PermissionDelegate.MediaSource>?,
+        audio: Array<GeckoSession.PermissionDelegate.MediaSource>?
+    )
 
     var isConnected: Boolean
 
@@ -21,6 +25,6 @@ interface WebClientCallback {
 
     fun stopReloadDelay()
 
-    fun certPermissionsShown() : Boolean
+    fun certPermissionsShown(): Boolean
 
 }

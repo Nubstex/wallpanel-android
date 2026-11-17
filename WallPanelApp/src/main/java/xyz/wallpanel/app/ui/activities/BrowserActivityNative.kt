@@ -25,8 +25,6 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.Browser
 import android.view.*
-import android.webkit.*
-import android.widget.Button
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
@@ -35,16 +33,16 @@ import androidx.coordinatorlayout.widget.CoordinatorLayout
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleObserver
-import com.google.firebase.crashlytics.FirebaseCrashlytics
-import com.google.firebase.crashlytics.ktx.crashlytics
-import com.google.firebase.crashlytics.ktx.setCustomKeys
-import com.google.firebase.ktx.Firebase
+import org.mozilla.geckoview.GeckoSession
+import org.mozilla.geckoview.GeckoSessionSettings
+import org.mozilla.geckoview.StorageController
+import xyz.wallpanel.app.WallPanel
 import xyz.wallpanel.app.databinding.ActivityBrowserBinding
 import xyz.wallpanel.app.network.ConnectionLiveData
 import xyz.wallpanel.app.ui.fragments.CodeBottomSheetFragment
-import xyz.wallpanel.app.utils.InternalWebChromeClient
+import xyz.wallpanel.app.ui.views.CustomGeckoView
 import xyz.wallpanel.app.ui.views.WebClientCallback
-import xyz.wallpanel.app.utils.InternalWebClient
+import xyz.wallpanel.app.utils.InternalGeckoSessionDelegate
 import xyz.wallpanel.app.BuildConfig
 import xyz.wallpanel.app.R
 import timber.log.Timber
@@ -55,17 +53,19 @@ import java.util.concurrent.TimeUnit
 
 class BrowserActivityNative : BaseBrowserActivity(), LifecycleObserver, WebClientCallback {
 
-    private lateinit var webView: WebView
+    private lateinit var geckoView: CustomGeckoView
+    private lateinit var geckoSession: GeckoSession
     private lateinit var binding: ActivityBrowserBinding
     private var certPermissionsShown = false
     private var playlistHandler: Handler? = null
     private var codeBottomSheet: CodeBottomSheetFragment? = null
-    private var webSettings: WebSettings? = null
     private val calendar: Calendar = Calendar.getInstance()
     private val reconnectionHandler = Handler(Looper.getMainLooper())
     private var connectionLiveData: ConnectionLiveData? = null
     override var isConnected = true
-    private var webkitPermissionRequest: PermissionRequest? = null
+    private var pendingMediaCallback: GeckoSession.PermissionDelegate.MediaCallback? = null
+    private var pendingVideoSources: Array<GeckoSession.PermissionDelegate.MediaSource>? = null
+    private var pendingAudioSources: Array<GeckoSession.PermissionDelegate.MediaSource>? = null
     private var awaitingReconnect = false
 
     private val reloadPageRunnable = Runnable {
@@ -125,7 +125,7 @@ class BrowserActivityNative : BaseBrowserActivity(), LifecycleObserver, WebClien
         }
 
         configureConnection()
-        configureWebView(binding.root)
+        configureGeckoView()
         initWebPageLoad()
     }
 
@@ -137,21 +137,16 @@ class BrowserActivityNative : BaseBrowserActivity(), LifecycleObserver, WebClien
             setLightTheme()
         }
 
-        if (configuration.hardwareAccelerated) {
-            // chromium, enable hardware acceleration
-            webView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
-        } else {
-            // older android version, disable hardware acceleration
-            webView.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
-        }
-
         if (configuration.browserRefresh) {
             binding.swipeContainer.setOnRefreshListener {
                 clearCache()
                 initWebPageLoad()
             }
+            // GeckoView scrolls its content inside the compositor rather than as an
+            // Android View, so View.scrollY is always 0 here; swipe-to-refresh is left
+            // enabled at all scroll positions as a result.
             mOnScrollChangedListener = ViewTreeObserver.OnScrollChangedListener {
-                binding.swipeContainer?.isEnabled = webView.scrollY == 0
+                binding.swipeContainer?.isEnabled = geckoView.scrollY == 0
             }
             binding.swipeContainer.viewTreeObserver.addOnScrollChangedListener(mOnScrollChangedListener)
         } else {
@@ -167,7 +162,6 @@ class BrowserActivityNative : BaseBrowserActivity(), LifecycleObserver, WebClien
 
     override fun onStop() {
         super.onStop()
-        val view = binding.root
         if (mOnScrollChangedListener != null && configuration.browserRefresh) {
             binding.swipeContainer.viewTreeObserver.removeOnScrollChangedListener(mOnScrollChangedListener)
         }
@@ -176,6 +170,7 @@ class BrowserActivityNative : BaseBrowserActivity(), LifecycleObserver, WebClien
     override fun onDestroy() {
         super.onDestroy()
         codeBottomSheet?.dismiss()
+        geckoSession.close()
     }
 
     override fun openSettings() {
@@ -194,7 +189,7 @@ class BrowserActivityNative : BaseBrowserActivity(), LifecycleObserver, WebClien
                 launchIntent = Intent.parseUri(url, Intent.URI_INTENT_SCHEME)
             } catch (ex: URISyntaxException) {
                 Timber.e("Bad URI $url: $ex.message")
-                dialogUtils.showAlertDialog(webView.context, resources.getString(R.string.dialog_message_invalid_intent))
+                dialogUtils.showAlertDialog(geckoView.context, resources.getString(R.string.dialog_message_invalid_intent))
                 return
             }
             val selector = launchIntent.selector
@@ -202,58 +197,41 @@ class BrowserActivityNative : BaseBrowserActivity(), LifecycleObserver, WebClien
                 selector.addCategory(Intent.CATEGORY_BROWSABLE)
                 selector.setComponent(null)
             }
-            launchIntent.putExtra(Browser.EXTRA_APPLICATION_ID, webView.context.packageName);
-            webView.context.startActivity(launchIntent)
+            launchIntent.putExtra(Browser.EXTRA_APPLICATION_ID, geckoView.context.packageName);
+            geckoView.context.startActivity(launchIntent)
         } else {
-            webView.loadUrl(url)
+            geckoSession.loadUri(url)
         }
     }
 
     override fun evaluateJavascript(js: String) {
-        webView.evaluateJavascript(js, null)
+        // GeckoSession has no WebView.evaluateJavascript equivalent: running arbitrary
+        // JS against a loaded page requires a WebExtension content script. The
+        // BROADCAST_ACTION_JS_EXEC remote-exec feature (triggered via MQTT) is
+        // therefore a known gap until that port is done.
+        Timber.w("evaluateJavascript is not implemented for GeckoView; dropping JS exec request")
     }
 
     override fun clearCache() {
-        webView.clearCache(true)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            CookieManager.getInstance().removeAllCookies(null)
-        }
+        WallPanel.getGeckoRuntime(applicationContext).storageController
+            .clearData(StorageController.ClearFlags.ALL.toLong())
     }
 
     override fun reload() {
-        webView.reload()
+        geckoSession.reload()
     }
 
     @SuppressLint("SetJavaScriptEnabled")
-    // TODO handle deprecated web settings
     override fun configureWebSettings(userAgent: String) {
-        if (webSettings == null) {
-            webSettings = webView.settings
-        }
-        webSettings?.javaScriptEnabled = true
-        webSettings?.domStorageEnabled = true
-        webSettings?.databaseEnabled = true
-        webSettings?.saveFormData = true
-        webSettings?.javaScriptCanOpenWindowsAutomatically = true
-        webSettings?.cacheMode = WebSettings.LOAD_NO_CACHE
-        webSettings?.allowFileAccess = true
-        webSettings?.allowFileAccessFromFileURLs = true
-        webSettings?.allowContentAccess = true
-        webSettings?.setSupportZoom(true)
-        webSettings?.loadWithOverviewMode = true
-        webSettings?.useWideViewPort = true
-        webSettings?.pluginState = WebSettings.PluginState.ON
-        webSettings?.setRenderPriority(WebSettings.RenderPriority.HIGH)
-        // webSettings?.cacheMode = WebSettings.LOAD_NO_CACHE;
-        webSettings?.mediaPlaybackRequiresUserGesture = false
-
+        // GeckoSessionSettings has no equivalent for: allowFileAccess/
+        // allowFileAccessFromFileURLs/allowContentAccess (no file:// embedding model in
+        // GeckoView), saveFormData, domStorageEnabled/databaseEnabled (always on),
+        // pluginState (NPAPI plugins don't exist in Gecko), setRenderPriority, or
+        // cacheMode (LOAD_NO_CACHE has no session-level toggle). Those are dropped.
         if (userAgent.isNotEmpty()) {
-            webSettings?.userAgentString = userAgent
+            geckoSession.settings.userAgentOverride = userAgent
         }
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            webSettings?.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-        }
+        geckoSession.settings.useTrackingProtection = false
     }
 
     override fun complete() {
@@ -262,8 +240,14 @@ class BrowserActivityNative : BaseBrowserActivity(), LifecycleObserver, WebClien
         }
     }
 
-    override fun setWebkitPermissionRequest(request: PermissionRequest?) {
-        webkitPermissionRequest = request
+    override fun setPendingMediaPermission(
+        callback: GeckoSession.PermissionDelegate.MediaCallback?,
+        video: Array<GeckoSession.PermissionDelegate.MediaSource>?,
+        audio: Array<GeckoSession.PermissionDelegate.MediaSource>?
+    ) {
+        pendingMediaCallback = callback
+        pendingVideoSources = video
+        pendingAudioSources = audio
     }
 
     override fun displayProgress(): Boolean {
@@ -302,7 +286,8 @@ class BrowserActivityNative : BaseBrowserActivity(), LifecycleObserver, WebClien
                 ActivityCompat.requestPermissions(this, arrayOf(permission), requestCode)
             }
         } else {
-            webkitPermissionRequest?.grant(webkitPermissionRequest?.resources)
+            pendingMediaCallback?.grant(pendingVideoSources?.firstOrNull(), pendingAudioSources?.firstOrNull())
+            pendingMediaCallback = null
         }
     }
 
@@ -324,14 +309,27 @@ class BrowserActivityNative : BaseBrowserActivity(), LifecycleObserver, WebClien
     }
 
     @SuppressLint("ClickableViewAccessibility")
-    private fun configureWebView(view: ViewGroup) {
-        webView = binding.activityBrowserWebviewNative
-        webView.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
-        // Force links and redirects to open in the WebView instead of in a browser
-        configureWebChromeClient()
-        configureWebViewClient()
+    private fun configureGeckoView() {
+        geckoView = binding.activityBrowserWebviewNative
+        geckoSession = GeckoSession(GeckoSessionSettings.Builder().build())
+        geckoSession.open(WallPanel.getGeckoRuntime(applicationContext))
 
-        webView.setOnTouchListener { v, event ->
+        val delegate = InternalGeckoSessionDelegate(
+            resources = resources,
+            anchorView = geckoView,
+            callback = this,
+            configuration = configuration,
+            dialogUtils = dialogUtils
+        )
+        geckoSession.navigationDelegate = delegate
+        geckoSession.progressDelegate = delegate
+        geckoSession.contentDelegate = delegate
+        geckoSession.permissionDelegate = delegate
+        geckoSession.promptDelegate = delegate
+
+        geckoView.setSession(geckoSession)
+
+        geckoView.setOnTouchListener { v, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
                     resetScreen()
@@ -347,24 +345,14 @@ class BrowserActivityNative : BaseBrowserActivity(), LifecycleObserver, WebClien
         }
     }
 
-    private fun configureWebChromeClient() {
-        webView.webChromeClient = InternalWebChromeClient(resources = resources, callback = this)
-    }
-
-    private fun configureWebViewClient() {
-        webView.webViewClient = InternalWebClient(resources = resources, callback = this, configuration)
-    }
-
     private fun initWebPageLoad() {
         binding.progressView.visibility = View.GONE
-        webView.visibility = View.VISIBLE
+        geckoView.visibility = View.VISIBLE
         // set user agent
         configureWebSettings(configuration.browserUserAgent)
-        // set zoom level
-        if (zoomLevel != 0.0f) {
-            val zoomPercent = (zoomLevel * 100).toInt()
-            webView.setInitialScale(zoomPercent)
-        }
+        // set zoom level: GeckoSessionSettings/GeckoView has no equivalent of
+        // WebView.setInitialScale, so configuration.testZoomLevel ("zoomLevel") is not
+        // applied here.
         // check if we are using playlist
         if (configuration.appLaunchUrl.lines().size == 1) {
             loadWebViewUrl(configuration.appLaunchUrl)
