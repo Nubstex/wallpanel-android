@@ -21,11 +21,13 @@ import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import xyz.wallpanel.app.ui.activities.BrowserActivityNative
 import kotlin.system.exitProcess
 
 class AppExceptionHandler(private val activity: Activity) : Thread.UncaughtExceptionHandler {
     override fun uncaughtException(thread: Thread, ex: Throwable) {
+        Log.e("AppExceptionHandler", "Uncaught exception, restarting app", ex)
         val intent = Intent(activity, BrowserActivityNative::class.java)
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP
                 or Intent.FLAG_ACTIVITY_CLEAR_TASK

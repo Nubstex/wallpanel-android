@@ -82,12 +82,12 @@
                 android:orientation="horizontal"
                 android:visibility="visible">
 
-            <ImageView
+            <androidx.appcompat.widget.AppCompatImageView
                     android:layout_width="24dp"
                     android:layout_height="24dp"
                     android:layout_marginLeft="8dp"
                     android:tint="@color/gray"
-                    android:src="@drawable/ic_email_black"/>
+                    app:srcCompat="@drawable/ic_email_black"/>
 
             <TextView
                     style="@style/TextAppearance.AppCompat.Body1"
@@ -109,12 +109,12 @@
             android:paddingLeft="24dp"
                 android:orientation="horizontal">
 
-            <ImageView
+            <androidx.appcompat.widget.AppCompatImageView
                     android:layout_width="24dp"
                     android:layout_height="24dp"
                 android:layout_marginLeft="8dp"
                     android:tint="@color/gray"
-                    android:src="@drawable/ic_star_black"/>
+                    app:srcCompat="@drawable/ic_star_black"/>
 
             <TextView
                     style="@style/TextAppearance.AppCompat.Body1"
@@ -136,12 +136,12 @@
             android:paddingLeft="24dp"
             android:orientation="horizontal">
 
-            <ImageView
+            <androidx.appcompat.widget.AppCompatImageView
                 android:layout_width="24dp"
                 android:layout_height="24dp"
                 android:layout_marginLeft="8dp"
                 android:tint="@color/gray"
-                android:src="@drawable/ic_help_black"/>
+                app:srcCompat="@drawable/ic_help_black"/>
 
             <TextView
                 style="@style/TextAppearance.AppCompat.Body1"
@@ -164,11 +164,11 @@
             android:orientation="horizontal"
             android:paddingLeft="24dp">
 
-            <ImageView
+            <androidx.appcompat.widget.AppCompatImageView
                 android:layout_width="24dp"
                 android:layout_height="24dp"
                 android:layout_marginLeft="8dp"
-                android:src="@drawable/ic_file_edit"
+                app:srcCompat="@drawable/ic_file_edit"
                 android:tint="@color/gray" />
 
             <TextView
@@ -190,12 +190,12 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal">
 
-            <ImageView
+            <androidx.appcompat.widget.AppCompatImageView
                     android:layout_width="24dp"
                     android:layout_height="24dp"
                 android:layout_marginLeft="8dp"
                     android:tint="@color/gray"
-                    android:src="@drawable/ic_github_blk"/>
+                    app:srcCompat="@drawable/ic_github_blk"/>
 
             <TextView
                     style="@style/TextAppearance.AppCompat.Body1"
