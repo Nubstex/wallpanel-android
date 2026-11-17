@@ -15,9 +15,7 @@ Philips 10BDL3051T, Android 4.4.4 (API 19).
 
 # WallPanel
 
-WallPanel is an Android application for Web Based Dashboards and Home Automation Platforms. You can either sideload the application to your Android device from the [release section](https://github.com/thetimewalker/wallpanel-android/releases) or install the application from [Google Play](https://play.google.com/store/apps/details?id=xyz.wallpanel.app).
-
-<a href='https://play.google.com/store/apps/details?id=xyz.wallpanel.app&pcampaignid=pcampaignidMKT-Other-global-all-co-prtnr-py-PartBadge-Mar2515-1'><img alt='Get it on Google Play' src='https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png' width='240'/></a>
+WallPanel is an Android application for Web Based Dashboards and Home Automation Platforms. You can either sideload the application to your Android device.
 
 ## Screenshots
 
