@@ -90,6 +90,9 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            // TODO: use a real release keystore before shipping; debug signing is only
+            // here so this build can be sideloaded for testing.
+            signingConfig signingConfigs.debug
         }
     }
     buildFeatures {
