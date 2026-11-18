@@ -1,16 +1,21 @@
-# ARCHIVED
+## GeckoView engine + crash fix
 
-This project is now archived. As the maintainer of this project since 2022, I unfortunately didn't really live up to the standards to properly maintain this project. When taking over as maintainer, I was at the time motivated to work on it. However, in the coming years I have realized that with not having as much deep knowledge at native development, I wasn't able to work on it how I imagined to do. Additionally, I had more trouble really motivating myself, taking the necesssary free time and wrapping around developing this app. I then realized lately, that I personally haven't been using this app as extensively as I thought I would since I ended up only having one wall panel - which uses the Home Assistant companion app for this task. After ignoring issues and notifications all around, I've decided to archive this repository instead of disappointing additional people.
+### Changes
+- **Replaced the system WebView with bundled GeckoView.** The system WebView on older tablets (Android 4.4.4) is frozen on a very old Chromium build and can't render modern dashboards (e.g. Home Assistant with Shadow DOM / Custom Elements). GeckoView now ships bundled with the app, so it no longer depends on the device's WebView version.
+- **Fixed a crash when opening Settings** on older devices (API 19 / Android 4.4): several vector icons were loaded via `android:src` instead of `app:srcCompat`, and the old framework `ImageView` has no vector drawable support — the app crashed on the PIN keypad and the About screen.
+- Added logging for uncaught exceptions (previously silently swallowed, which made crashes hard to diagnose).
 
-If anybody else wants to step up on continuing development and maintaining this project, you can contact me in the e-mail address inside the app and we can organize the transfer of the project, transfer for Google Play app, its signing keys, domain, and everything in-between.
+### Known limitations
+- `evaluateJavascript` (remote JS execution via MQTT) is not implemented for GeckoView.
+- SSL error bypass can no longer force a page to load the way it did with WebView.
+- Several legacy WebSettings options (file access, cache mode, render priority) have no GeckoView equivalent and were dropped.
 
-Thank you!
+### Tested on
+Philips 10BDL3051T, Android 4.4.4 (API 19).
 
 # WallPanel
 
-WallPanel is an Android application for Web Based Dashboards and Home Automation Platforms. You can either sideload the application to your Android device from the [release section](https://github.com/thetimewalker/wallpanel-android/releases) or install the application from [Google Play](https://play.google.com/store/apps/details?id=xyz.wallpanel.app).
-
-<a href='https://play.google.com/store/apps/details?id=xyz.wallpanel.app&pcampaignid=pcampaignidMKT-Other-global-all-co-prtnr-py-PartBadge-Mar2515-1'><img alt='Get it on Google Play' src='https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png' width='240'/></a>
+WallPanel is an Android application for Web Based Dashboards and Home Automation Platforms. You can either sideload the application to your Android device.
 
 ## Screenshots
 
