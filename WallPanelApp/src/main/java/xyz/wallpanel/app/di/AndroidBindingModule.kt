@@ -79,4 +79,13 @@ internal abstract class AndroidBindingModule {
 
     @ContributesAndroidInjector
     internal abstract fun sensorsSettings(): SensorsSettingsFragment
+
+    @ContributesAndroidInjector
+    internal abstract fun sicpSettings(): SicpSettingsFragment
+
+    @ContributesAndroidInjector
+    internal abstract fun sicpScreenSettings(): SicpScreenSettingsFragment
+
+    @ContributesAndroidInjector
+    internal abstract fun sicpLedSettings(): SicpLedSettingsFragment
 }

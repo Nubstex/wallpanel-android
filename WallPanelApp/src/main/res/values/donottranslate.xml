@@ -148,6 +148,9 @@
     <string name="key_screensaver_dim">c</string>
     <string name="default_screensaver_dim">false</string>
 
+    <string name="key_screensaver_dim_mode">screensaver_dim_mode</string>
+    <string name="default_screensaver_dim_mode">0</string>
+
     <string name="key_setting_screen_brightness">setting_screen_brightness</string>
     <string name="default_setting_screen_brightness">150</string>
 
@@ -289,6 +292,28 @@
         <item>75</item>
         <item>90</item>
         <item>99</item>
+    </string-array>
+
+    <string-array name="dim_mode_title">
+        <item>Black Overlay</item>
+        <item>Brightness Control</item>
+    </string-array>
+
+    <string-array name="dim_mode_values">
+        <item>0</item>
+        <item>1</item>
+    </string-array>
+
+    <string-array name="led_mode_title">
+        <item>Static</item>
+        <item>Active Only</item>
+        <item>Two State (Active/Inactive)</item>
+    </string-array>
+
+    <string-array name="led_mode_values">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
     </string-array>
 
     <string-array name="mqtt_version_title">

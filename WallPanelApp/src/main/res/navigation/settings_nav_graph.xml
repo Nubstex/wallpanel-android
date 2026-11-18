@@ -23,6 +23,7 @@
         <action android:id="@+id/http_action" app:destination="@id/http_fragment"/>
         <action android:id="@+id/sensors_action" app:destination="@id/sensors_fragment"/>
         <action android:id="@+id/about_action" app:destination="@id/about_fragment"/>
+        <action android:id="@+id/sicp_action" app:destination="@id/sicp_fragment"/>
     </fragment>
 
     <fragment android:id="@+id/camera_fragment"
@@ -77,6 +78,26 @@
         android:label="@string/title_qrcode_settings"
         android:name="xyz.wallpanel.app.ui.fragments.QrCodeSettingsFragment" >
         <action android:id="@+id/camera_action" app:destination="@id/camera_fragment"/>
+    </fragment>
+
+    <fragment android:id="@+id/sicp_fragment"
+        android:label="@string/title_sicp_settings"
+        android:name="xyz.wallpanel.app.ui.fragments.SicpSettingsFragment" >
+        <action android:id="@+id/settings_action" app:destination="@id/settings_fragment"/>
+        <action android:id="@+id/sicp_screen_action" app:destination="@id/sicp_screen_fragment"/>
+        <action android:id="@+id/sicp_led_action" app:destination="@id/sicp_led_fragment"/>
+    </fragment>
+
+    <fragment android:id="@+id/sicp_screen_fragment"
+        android:label="@string/title_sicp_screen_settings"
+        android:name="xyz.wallpanel.app.ui.fragments.SicpScreenSettingsFragment" >
+        <action android:id="@+id/sicp_action" app:destination="@id/sicp_fragment"/>
+    </fragment>
+
+    <fragment android:id="@+id/sicp_led_fragment"
+        android:label="@string/title_sicp_led_settings"
+        android:name="xyz.wallpanel.app.ui.fragments.SicpLedSettingsFragment" >
+        <action android:id="@+id/sicp_action" app:destination="@id/sicp_fragment"/>
     </fragment>
 
 </navigation>

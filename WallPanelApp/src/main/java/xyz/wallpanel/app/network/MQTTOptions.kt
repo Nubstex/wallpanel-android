@@ -19,6 +19,8 @@ package xyz.wallpanel.app.network
 import android.text.TextUtils
 import xyz.wallpanel.app.persistence.Configuration
 import xyz.wallpanel.app.utils.MqttUtils.Companion.TOPIC_COMMAND
+import xyz.wallpanel.app.utils.MqttUtils.Companion.TOPIC_LED_COMMAND
+import xyz.wallpanel.app.utils.MqttUtils.Companion.TOPIC_LED_STATE
 
 import java.util.*
 import javax.inject.Inject
@@ -74,7 +76,16 @@ constructor(private val configuration: Configuration) {
     fun getStateTopics(): Array<String> {
         val topics = ArrayList<String>()
         topics.add(getStateTopic())
+        topics.add(getLedCommandTopic())
         return topics.toArray(arrayOf<String>())
+    }
+
+    fun getLedCommandTopic(): String {
+        return getBaseTopic() + TOPIC_LED_COMMAND
+    }
+
+    fun getLedStateTopic(): String {
+        return getBaseTopic() + TOPIC_LED_STATE
     }
 
     fun getUsername(): String {

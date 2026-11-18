@@ -318,6 +318,15 @@ constructor(private val context: Context, private val sharedPreferences: SharedP
         set(value) =
             sharedPreferences.edit().putBoolean(context.getString(R.string.key_screensaver_dim), value).apply()
 
+    // 0 = black overlay (works on every device), 1 = brightness control only (device-dependent)
+    // Stored as a String: this key is shared with a ListPreference widget, which always
+    // persists its own value as a String regardless of the entryValues' apparent type.
+    var dimScreenSaverMode: Int
+        get() = sharedPreferences.getString(context.getString(R.string.key_screensaver_dim_mode), "0")?.toIntOrNull() ?: 0
+        set(value) {
+            sharedPreferences.edit().putString(context.getString(R.string.key_screensaver_dim_mode), value.toString()).apply()
+        }
+
     var hasClockScreenSaver: Boolean
         get() = getBoolPref(R.string.key_screensaver, R.string.default_screensaver)
         set(value) =
@@ -356,6 +365,49 @@ constructor(private val context: Context, private val sharedPreferences: SharedP
         get() = getBoolPref(R.string.key_setting_ignore_ssl_errors,
                 R.string.default_setting_ignore_ssl_errors)
 
+    // SICP (Philips signage control protocol, sent to the panel's own loopback)
+    var sicpAutoScreenPower: Boolean
+        get() = this.sharedPreferences.getBoolean(PREF_SICP_AUTO_SCREEN_POWER, false)
+        set(value) = this.sharedPreferences.edit().putBoolean(PREF_SICP_AUTO_SCREEN_POWER, value).apply()
+
+    // LED strip control, driven over SICP. wledSimulationEnabled and ledMode are mutually
+    // exclusive: enabling one is expected to disable the other.
+    var wledSimulationEnabled: Boolean
+        get() = this.sharedPreferences.getBoolean(PREF_WLED_SIMULATION_ENABLED, false)
+        set(value) = this.sharedPreferences.edit().putBoolean(PREF_WLED_SIMULATION_ENABLED, value).apply()
+
+    // Stored as a String: this key is shared with a ListPreference widget, which always
+    // persists its own value as a String regardless of the entryValues' apparent type.
+    var ledMode: Int
+        get() = this.sharedPreferences.getString(PREF_LED_MODE, LED_MODE_STATIC.toString())?.toIntOrNull() ?: LED_MODE_STATIC
+        set(value) = this.sharedPreferences.edit().putString(PREF_LED_MODE, value.toString()).apply()
+
+    var ledStaticOn: Boolean
+        get() = this.sharedPreferences.getBoolean(PREF_LED_STATIC_ON, false)
+        set(value) = this.sharedPreferences.edit().putBoolean(PREF_LED_STATIC_ON, value).apply()
+
+    // Colors are stored as "#RRGGBB" strings, not raw ints: these keys are shared with
+    // EditTextPreference widgets, which always persist their own value as a String.
+    var ledStaticColor: Int
+        get() = parseColorPref(PREF_LED_STATIC_COLOR)
+        set(value) = putColorPref(PREF_LED_STATIC_COLOR, value)
+
+    var ledActiveColor: Int
+        get() = parseColorPref(PREF_LED_ACTIVE_COLOR)
+        set(value) = putColorPref(PREF_LED_ACTIVE_COLOR, value)
+
+    var ledActiveLoop: Boolean
+        get() = this.sharedPreferences.getBoolean(PREF_LED_ACTIVE_LOOP, false)
+        set(value) = this.sharedPreferences.edit().putBoolean(PREF_LED_ACTIVE_LOOP, value).apply()
+
+    var ledInactiveColor: Int
+        get() = parseColorPref(PREF_LED_INACTIVE_COLOR)
+        set(value) = putColorPref(PREF_LED_INACTIVE_COLOR, value)
+
+    var ledInactiveLoop: Boolean
+        get() = this.sharedPreferences.getBoolean(PREF_LED_INACTIVE_LOOP, false)
+        set(value) = this.sharedPreferences.edit().putBoolean(PREF_LED_INACTIVE_LOOP, value).apply()
+
     fun hasCameraDetections(): Boolean {
         return cameraEnabled && (cameraMotionEnabled || cameraQRCodeEnabled || cameraFaceEnabled || httpMJPEGEnabled)
     }
@@ -364,6 +416,19 @@ constructor(private val context: Context, private val sharedPreferences: SharedP
         val def = context.getString(defId)
         val pref = sharedPreferences.getString(context.getString(resId), "")
         return if (pref!!.isEmpty()) def else pref
+    }
+
+    private fun parseColorPref(key: String): Int {
+        val hex = sharedPreferences.getString(key, null) ?: return DEFAULT_LED_COLOR
+        return try {
+            android.graphics.Color.parseColor(if (hex.startsWith("#")) hex else "#$hex")
+        } catch (e: IllegalArgumentException) {
+            DEFAULT_LED_COLOR
+        }
+    }
+
+    private fun putColorPref(key: String, color: Int) {
+        sharedPreferences.edit().putString(key, String.format("#%06X", 0xFFFFFF and color)).apply()
     }
 
     private fun getBoolPref(resId: Int, defId: Int): Boolean {
@@ -406,5 +471,19 @@ constructor(private val context: Context, private val sharedPreferences: SharedP
         private val PREF_WEB_SCREENSAVER_URL = "pref_web_screensaver_url"
         private val PREF_WEB_SCREENSAVER = "pref_web_screensaver"
         const val WEB_SCREEN_SAVER = "https://wallpanel.xyz"
+
+        const val PREF_SICP_AUTO_SCREEN_POWER = "pref_sicp_auto_screen_power"
+        const val PREF_WLED_SIMULATION_ENABLED = "pref_wled_simulation_enabled"
+        const val PREF_LED_MODE = "pref_led_mode"
+        const val PREF_LED_STATIC_ON = "pref_led_static_on"
+        const val PREF_LED_STATIC_COLOR = "pref_led_static_color"
+        const val PREF_LED_ACTIVE_COLOR = "pref_led_active_color"
+        const val PREF_LED_ACTIVE_LOOP = "pref_led_active_loop"
+        const val PREF_LED_INACTIVE_COLOR = "pref_led_inactive_color"
+        const val PREF_LED_INACTIVE_LOOP = "pref_led_inactive_loop"
+        const val LED_MODE_STATIC = 0
+        const val LED_MODE_ACTIVE_ONLY = 1
+        const val LED_MODE_TWO_STATE = 2
+        const val DEFAULT_LED_COLOR = -0x1 // Color.WHITE
     }
 }

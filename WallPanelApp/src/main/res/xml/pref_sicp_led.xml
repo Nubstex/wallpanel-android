@@ -1,0 +1,95 @@
+<!--
+  ~ Copyright (c) 2022 WallPanel
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~ http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software distributed
+  ~ under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <PreferenceCategory android:title="@string/title_wled_simulation">
+
+        <Preference
+            android:key="pref_wled_info"
+            android:textColor="@color/light_gray"
+            android:textSize="12sp"
+            android:selectable="false"
+            android:paddingTop="0dp"/>
+
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="pref_wled_simulation_enabled"
+            android:title="@string/title_wled_simulation"
+            android:summary="@string/summary_wled_simulation"/>
+
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="@string/title_led_mode">
+
+        <ListPreference
+            android:key="pref_led_mode"
+            android:title="@string/title_led_mode"
+            android:summary="@string/summary_led_mode"
+            android:entries="@array/led_mode_title"
+            android:entryValues="@array/led_mode_values"/>
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:key="pref_led_static_category"
+        android:title="@string/pref_led_static_title">
+
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="pref_led_static_on"
+            android:title="@string/title_led_static_on"/>
+
+        <EditTextPreference
+            android:key="pref_led_static_color"
+            android:title="@string/title_led_static_color"
+            android:hint="@string/hint_led_color"/>
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:key="pref_led_active_category"
+        android:title="@string/pref_led_active_title">
+
+        <EditTextPreference
+            android:key="pref_led_active_color"
+            android:title="@string/title_led_active_color"
+            android:hint="@string/hint_led_color"/>
+
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="pref_led_active_loop"
+            android:title="@string/title_led_active_loop"/>
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:key="pref_led_inactive_category"
+        android:title="@string/pref_led_inactive_title">
+
+        <EditTextPreference
+            android:key="pref_led_inactive_color"
+            android:title="@string/title_led_inactive_color"
+            android:hint="@string/hint_led_color"/>
+
+        <SwitchPreference
+            android:defaultValue="false"
+            android:key="pref_led_inactive_loop"
+            android:title="@string/title_led_inactive_loop"/>
+
+    </PreferenceCategory>
+
+</PreferenceScreen>

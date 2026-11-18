@@ -191,6 +191,14 @@
             android:entries="@array/dim_title"
             android:entryValues="@array/dim_values"/>
 
+        <ListPreference
+            android:key="pref_screensaver_dim_mode"
+            android:dependency="settings_screensaver_dim"
+            android:title="@string/preference_title_screen_saver_dim_mode"
+            android:summary="@string/preference_summary_screen_saver_dim_mode"
+            android:entries="@array/dim_mode_title"
+            android:entryValues="@array/dim_mode_values"/>
+
     </PreferenceCategory>
 
     <PreferenceCategory android:title="@string/pref_additional_settings_title">
@@ -210,6 +218,10 @@
         <Preference
             android:key="button_key_sensors"
             android:title="@string/title_sensor_settings"/>
+
+        <Preference
+            android:key="button_key_sicp"
+            android:title="@string/title_sicp_settings"/>
 
     </PreferenceCategory>
 

@@ -71,6 +71,7 @@ class SettingsFragment : BaseSettingsFragment() {
     private var mqttPreference: Preference? = null
     private var httpPreference: Preference? = null
     private var sensorsPreference: Preference? = null
+    private var sicpPreference: Preference? = null
     private var aboutPreference: Preference? = null
     private var brightnessPreference: Preference? = null
     private var browserRefreshPreference: SwitchPreference? = null
@@ -119,6 +120,10 @@ class SettingsFragment : BaseSettingsFragment() {
 
     private val dimScreensaver: SwitchPreference by lazy {
         findPreference<SwitchPreference>(PREF_SETTINGS_SCREENSAVER_DIM) as SwitchPreference
+    }
+
+    private val dimScreensaverMode: ListPreference by lazy {
+        findPreference<ListPreference>(PREF_SETTINGS_SCREENSAVER_DIM_MODE) as ListPreference
     }
 
     private val wallpaperSaverPreference: SwitchPreference by lazy {
@@ -241,10 +246,15 @@ class SettingsFragment : BaseSettingsFragment() {
         dimPreference?.value = configuration.screenSaverDimValue.toString()
         dimPreference?.summary = getString(R.string.preference_summary_dim_screensaver, configuration.screenSaverDimValue.toString())
 
+        dimScreensaverMode.setDefaultValue(configuration.dimScreenSaverMode.toString())
+        dimScreensaverMode.value = configuration.dimScreenSaverMode.toString()
+        dimScreensaverMode.summary = dimScreensaverMode.entry
+
         cameraPreference = findPreference("button_key_camera")
         mqttPreference = findPreference("button_key_mqtt")
         httpPreference = findPreference("button_key_http")
         sensorsPreference = findPreference("button_key_sensors")
+        sicpPreference = findPreference("button_key_sicp")
         aboutPreference = findPreference("button_key_about")
         brightnessPreference = findPreference("button_key_brightness")
 
@@ -284,6 +294,10 @@ class SettingsFragment : BaseSettingsFragment() {
             }
             sensorsPreference?.onPreferenceClickListener = Preference.OnPreferenceClickListener { preference ->
                 view.let { Navigation.findNavController(it).navigate(R.id.sensors_action) }
+                false
+            }
+            sicpPreference?.onPreferenceClickListener = Preference.OnPreferenceClickListener { preference ->
+                view.let { Navigation.findNavController(it).navigate(R.id.sicp_action) }
                 false
             }
             codePreference.onPreferenceClickListener = Preference.OnPreferenceClickListener {
@@ -408,6 +422,13 @@ class SettingsFragment : BaseSettingsFragment() {
                 if(value) {
                     setWallPaperScreensaver(false)
                     setWebScreensaver(false)
+                }
+            }
+            PREF_SETTINGS_SCREENSAVER_DIM_MODE -> {
+                val value = dimScreensaverMode.value?.toIntOrNull()
+                if (value != null) {
+                    configuration.dimScreenSaverMode = value
+                    dimScreensaverMode.summary = dimScreensaverMode.entry
                 }
             }
 
@@ -553,5 +574,6 @@ class SettingsFragment : BaseSettingsFragment() {
         const val PREF_SETTINGS_SCREENSAVER_DIM = "settings_screensaver_dim"
         const val PREF_SETTINGS_WEB_SCREENSAVER = "settings_screensaver_web"
         const val PREF_SETTINGS_WEB_SCREENSAVER_URL = "settings_screensaver_web_url"
+        const val PREF_SETTINGS_SCREENSAVER_DIM_MODE = "pref_screensaver_dim_mode"
     }
 }

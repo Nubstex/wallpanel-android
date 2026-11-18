@@ -41,6 +41,7 @@ import com.koushikdutta.async.http.server.AsyncHttpServer
 import com.koushikdutta.async.http.server.AsyncHttpServerResponse
 import com.koushikdutta.async.util.Charsets
 import dagger.android.AndroidInjection
+import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 import timber.log.Timber
@@ -52,6 +53,7 @@ import xyz.wallpanel.app.ui.activities.BaseBrowserActivity.Companion.BROADCAST_A
 import xyz.wallpanel.app.ui.activities.BaseBrowserActivity.Companion.BROADCAST_ACTION_LOAD_URL
 import xyz.wallpanel.app.ui.activities.BaseBrowserActivity.Companion.BROADCAST_ACTION_OPEN_SETTINGS
 import xyz.wallpanel.app.ui.activities.BaseBrowserActivity.Companion.BROADCAST_ACTION_RELOAD_PAGE
+import xyz.wallpanel.app.utils.LedController
 import xyz.wallpanel.app.utils.MqttUtils
 import xyz.wallpanel.app.utils.MqttUtils.Companion.COMMAND_AUDIO
 import xyz.wallpanel.app.utils.MqttUtils.Companion.COMMAND_BRIGHTNESS
@@ -181,6 +183,12 @@ class WallPanelService : LifecycleService(), MQTTModule.MQTTListener {
         configureTextToSpeech()
         startSensors()
 
+        LedController.init(configuration)
+        LedController.onWledStateChanged = { publishLedState() }
+        if (configuration.wledSimulationEnabled) {
+            WledEmulationServer.start()
+        }
+
         val filter = IntentFilter()
         filter.addAction(BROADCAST_EVENT_URL_CHANGE)
         filter.addAction(BROADCAST_EVENT_SCREEN_TOUCH)
@@ -204,6 +212,7 @@ class WallPanelService : LifecycleService(), MQTTModule.MQTTListener {
         sensorReader.stopReadings()
         stopHttp()
         stopPowerOptions()
+        WledEmulationServer.stop()
         reconnectHandler.removeCallbacksAndMessages(null)
     }
 
@@ -373,7 +382,11 @@ class WallPanelService : LifecycleService(), MQTTModule.MQTTListener {
 
     override fun onMQTTMessage(id: String, topic: String, payload: String) {
         Timber.i("onMQTTMessage: $id, $topic, $payload")
-        processCommand(payload)
+        if (topic == mqttOptions.getLedCommandTopic()) {
+            processLedCommand(payload)
+        } else {
+            processCommand(payload)
+        }
     }
 
     private fun publishCommand(command: String, data: JSONObject) {
@@ -655,6 +668,89 @@ class WallPanelService : LifecycleService(), MQTTModule.MQTTListener {
         }
     }
 
+    // Handles Home Assistant's MQTT Light (JSON schema) command payload, e.g.
+    // {"state":"ON","brightness":180,"color":{"r":255,"g":120,"b":0},"effect":"Rainbow"}
+    private fun processLedCommand(payload: String) {
+        Timber.d("processLedCommand $payload")
+        try {
+            val json = JSONObject(payload)
+            val on = if (json.has("state")) json.getString("state").equals("ON", ignoreCase = true) else null
+            val bri = if (json.has("brightness")) json.getInt("brightness") else null
+            var color: IntArray? = null
+            if (json.has("color")) {
+                val c = json.getJSONObject("color")
+                color = intArrayOf(c.optInt("r"), c.optInt("g"), c.optInt("b"))
+            }
+            val fx = if (json.has("effect")) ledEffectNameToIndex(json.getString("effect")) else null
+            LedController.setWledState(on = on, bri = bri, color = color, fx = fx)
+        } catch (ex: JSONException) {
+            Timber.e("Invalid LED JSON passed as a command: $payload")
+        }
+    }
+
+    private fun ledEffectNameToIndex(name: String): Int = when (name) {
+        "Rainbow" -> 1
+        "Breathe" -> 2
+        else -> 0
+    }
+
+    private fun ledEffectIndexToName(index: Int): String = when (index) {
+        1 -> "Rainbow"
+        2 -> "Breathe"
+        else -> "Solid"
+    }
+
+    private fun publishLedState() {
+        if (!configuration.wledSimulationEnabled) return
+        val color = LedController.wledColor
+        val json = JSONObject()
+        json.put("state", if (LedController.wledOn) "ON" else "OFF")
+        json.put("brightness", LedController.wledBrightness)
+        json.put("color_mode", "rgb")
+        json.put("color", JSONObject().apply {
+            put("r", color[0])
+            put("g", color[1])
+            put("b", color[2])
+        })
+        json.put("effect", ledEffectIndexToName(LedController.wledFx))
+        publishMessage(mqttOptions.getLedStateTopic(), json.toString(), true)
+    }
+
+    private fun getLedLightDiscoveryDef(): JSONObject {
+        val discoveryDef = JSONObject()
+        if (configuration.mqttLegacyDiscoveryEntities) {
+            discoveryDef.put("name", "${configuration.mqttDiscoveryDeviceName} LED Strip")
+        } else {
+            discoveryDef.put("name", "LED Strip")
+        }
+        val originDef = JSONObject()
+        var version = ""
+        try {
+            val pInfo: PackageInfo =
+                applicationContext.packageManager.getPackageInfo(applicationContext.packageName, 0)
+            version = pInfo.versionName
+        } catch (e: PackageManager.NameNotFoundException) {
+            e.printStackTrace()
+        }
+        originDef.put("name", "WallPanel")
+        originDef.put("sw", version)
+        originDef.put("url", "https://wallpanel.xyz")
+        discoveryDef.put("origin", originDef)
+        discoveryDef.put("schema", "json")
+        discoveryDef.put("command_topic", mqttOptions.getLedCommandTopic())
+        discoveryDef.put("state_topic", mqttOptions.getLedStateTopic())
+        discoveryDef.put("brightness", true)
+        // "rgb": true is the deprecated flat color flag; current HA expects
+        // supported_color_modes instead, or the color picker doesn't show up.
+        discoveryDef.put("supported_color_modes", JSONArray(listOf("rgb")))
+        discoveryDef.put("effect", true)
+        discoveryDef.put("effect_list", JSONArray(listOf("Solid", "Rainbow", "Breathe")))
+        discoveryDef.put("unique_id", "wallpanel_${configuration.mqttClientId}_led")
+        discoveryDef.put("device", getDeviceDiscoveryDef())
+        discoveryDef.put("availability_topic", "${configuration.mqttBaseTopic}connection")
+        return discoveryDef
+    }
+
     private fun browseUrl(url: String) {
         Timber.d("browseUrl")
         val intent = Intent(BROADCAST_ACTION_LOAD_URL)
@@ -919,6 +1015,14 @@ class WallPanelService : LifecycleService(), MQTTModule.MQTTListener {
             publishMessage("${configuration.mqttDiscoveryTopic}/binary_sensor/${configuration.mqttClientId}/motion/config", motionDiscovery.toString(), true)
         } else {
             publishMessage("${configuration.mqttDiscoveryTopic}/binary_sensor/${configuration.mqttClientId}/motion/config", "", false)
+        }
+
+        if (configuration.wledSimulationEnabled) {
+            val ledDiscovery = getLedLightDiscoveryDef()
+            publishMessage("${configuration.mqttDiscoveryTopic}/light/${configuration.mqttClientId}/led/config", ledDiscovery.toString(), true)
+            publishLedState()
+        } else {
+            publishMessage("${configuration.mqttDiscoveryTopic}/light/${configuration.mqttClientId}/led/config", "", false)
         }
 
         if (configuration.cameraQRCodeEnabled && configuration.cameraEnabled) {

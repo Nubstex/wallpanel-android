@@ -47,7 +47,9 @@ import xyz.wallpanel.app.network.WallPanelService.Companion.BROADCAST_SERVICE_ST
 import xyz.wallpanel.app.network.WallPanelService.Companion.BROADCAST_TOAST_MESSAGE
 import xyz.wallpanel.app.persistence.Configuration
 import xyz.wallpanel.app.utils.DialogUtils
+import xyz.wallpanel.app.utils.LedController
 import xyz.wallpanel.app.utils.ScreenUtils
+import xyz.wallpanel.app.utils.SicpClient
 import javax.inject.Inject
 
 
@@ -309,8 +311,23 @@ abstract class BaseBrowserActivity : DaggerAppCompatActivity() {
         Timber.d("hideScreenSaver")
         val isScreenSaver = dialogUtils.hideScreenSaverDialog()
         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        wakePanel()
         if (isScreenSaver) {
             resetScreenBrightness(false)
+        }
+    }
+
+    /** Marks the panel active for LedController and, if enabled, powers the display back on over SICP. */
+    private fun wakePanel() {
+        if (LedController.setPanelActive(true) && configuration.sicpAutoScreenPower) {
+            SicpClient.screenOn()
+        }
+    }
+
+    /** Marks the panel inactive for LedController and, if enabled, powers the display off over SICP. */
+    private fun sleepPanel() {
+        if (LedController.setPanelActive(false) && configuration.sicpAutoScreenPower) {
+            SicpClient.screenOff()
         }
     }
 
@@ -319,23 +336,29 @@ abstract class BaseBrowserActivity : DaggerAppCompatActivity() {
      * with the alarm disabled because the disable time will be longer than this.
      */
     open fun showScreenSaver() {
-        Timber.d("showScreenSaver hasDimScreenSaver=${configuration.hasDimScreenSaver} hasClockScreenSaver=${configuration.hasClockScreenSaver}")
+        Timber.d("showScreenSaver hasDimScreenSaver=${configuration.hasDimScreenSaver} dimScreenSaverMode=${configuration.dimScreenSaverMode} hasClockScreenSaver=${configuration.hasClockScreenSaver}")
         // Dim and clock/wallpaper/web used to be mutually exclusive here (dim short-circuited
         // before the clock/wallpaper/web branch could run), so enabling "Dim Screen Saver"
         // silently disabled the others. The dialog's own background is solid black, so with
         // clock/wallpaper/web all off this now gives a plain black screen - independent of
-        // whether the device's own brightness control actually does anything.
-        if ((configuration.hasDimScreenSaver
+        // whether the device's own brightness control actually does anything. Dim mode 1
+        // (brightness-only) skips the overlay entirely for devices where brightness control
+        // is known to work and a literal black screen isn't wanted.
+        val dimAsOverlay = configuration.hasDimScreenSaver && configuration.dimScreenSaverMode == 0
+        val dimAsBrightnessOnly = configuration.hasDimScreenSaver && configuration.dimScreenSaverMode == 1
+        if ((dimAsOverlay
                     || configuration.hasClockScreenSaver
                     || configuration.webScreenSaver
                     || configuration.hasScreenSaverWallpaper)
             && !isFinishing
         ) {
             inactivityHandler.removeCallbacks(inactivityCallback)
+            if (dimAsOverlay) sleepPanel() else LedController.setPanelActive(false)
             dialogUtils.showScreenSaver(
                 this@BaseBrowserActivity,
                 {
                     dialogUtils.hideScreenSaverDialog()
+                    wakePanel()
                     resetScreenBrightness(false)
                     resetInactivityTimer()
                 },
@@ -346,6 +369,10 @@ abstract class BaseBrowserActivity : DaggerAppCompatActivity() {
                 configuration.imageRotation.toLong(),
                 configuration.appPreventSleep
             )
+            resetScreenBrightness(true)
+        } else if (dimAsBrightnessOnly) {
+            inactivityHandler.removeCallbacks(inactivityCallback)
+            sleepPanel()
             resetScreenBrightness(true)
         }
     }

@@ -222,13 +222,17 @@ class MQTT5Service(
     //@TargetApi(Build.VERSION_CODES.N)
     private fun subscribeToTopics(topicFilters: Array<String>?) {
         topicFilters?.let {
-            Timber.d("Subscribe to Topics: %s", topicFilters.convertArrayToString())
-            mqtt5AsyncClient?.let {
+            mqtt5AsyncClient?.let { client ->
                 try {
-                    it.subscribeWith().topicFilter(topicFilters.convertArrayToString()).send()
-                    it.publishes(MqttGlobalPublishFilter.ALL) { publish ->
+                    // Each topic needs its own subscribe call - a single topicFilter() does not
+                    // accept a comma-joined list of topics, it's one MQTT topic filter per call.
+                    topicFilters.forEach { topic ->
+                        Timber.d("Subscribe to Topic: %s", topic)
+                        client.subscribeWith().topicFilter(topic).send()
+                    }
+                    client.publishes(MqttGlobalPublishFilter.ALL) { publish ->
                         listener?.subscriptionMessage(
-                            it.config.clientIdentifier.get().toString(),
+                            client.config.clientIdentifier.get().toString(),
                             publish.topic.toString(),
                             Charsets.UTF_8.decode(publish.payload.get()).toString()
                         )

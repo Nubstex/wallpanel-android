@@ -66,6 +66,9 @@ class WallPanel : DaggerApplication() {
         } else {
             Timber.plant(CrashlyticsDebugTree())
             // Timber.plant(CrashlyticsTree())
+            // Also keep logs visible in logcat for release builds - this app ships side-loaded,
+            // not through a store, so there's no harm and it's regularly needed for diagnosis.
+            Timber.plant(WallpanelDebugTree())
         }
         strictMode()
         LauncherShortcuts.createShortcuts(this)

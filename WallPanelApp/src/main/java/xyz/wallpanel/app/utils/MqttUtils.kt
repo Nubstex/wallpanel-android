@@ -26,6 +26,8 @@ class MqttUtils {
 
         const val PORT = 1883
         const val TOPIC_COMMAND = "command"
+        const val TOPIC_LED_COMMAND = "led/set"
+        const val TOPIC_LED_STATE = "led/state"
         const val COMMAND_STATE = "state"
         const val VALUE = "value"
         const val COMMAND_SENSOR_FACE = "sensor/face"
