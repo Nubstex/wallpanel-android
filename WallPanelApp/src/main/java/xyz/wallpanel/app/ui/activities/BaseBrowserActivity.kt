@@ -319,13 +319,16 @@ abstract class BaseBrowserActivity : DaggerAppCompatActivity() {
      * with the alarm disabled because the disable time will be longer than this.
      */
     open fun showScreenSaver() {
-        if (configuration.hasDimScreenSaver) {
-            inactivityHandler.removeCallbacks(inactivityCallback)
-            resetScreenBrightness(true)
-        } else if ((configuration.hasClockScreenSaver
+        Timber.d("showScreenSaver hasDimScreenSaver=${configuration.hasDimScreenSaver} hasClockScreenSaver=${configuration.hasClockScreenSaver}")
+        // Dim and clock/wallpaper/web used to be mutually exclusive here (dim short-circuited
+        // before the clock/wallpaper/web branch could run), so enabling "Dim Screen Saver"
+        // silently disabled the others. The dialog's own background is solid black, so with
+        // clock/wallpaper/web all off this now gives a plain black screen - independent of
+        // whether the device's own brightness control actually does anything.
+        if ((configuration.hasDimScreenSaver
+                    || configuration.hasClockScreenSaver
                     || configuration.webScreenSaver
-                    || configuration.hasScreenSaverWallpaper
-                    || configuration.hasDimScreenSaver)
+                    || configuration.hasScreenSaverWallpaper)
             && !isFinishing
         ) {
             inactivityHandler.removeCallbacks(inactivityCallback)

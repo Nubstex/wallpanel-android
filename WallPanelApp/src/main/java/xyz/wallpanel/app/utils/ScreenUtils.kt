@@ -30,6 +30,7 @@ constructor(context: Context, private val configuration: Configuration): Context
     fun resetScreenBrightness(screenSaver: Boolean = true) {
         val useScreenBrightness = configuration.useScreenBrightness
         val canWriteSettings = canWriteScreenSetting()
+        Timber.d("resetScreenBrightness screenSaver=$screenSaver useScreenBrightness=$useScreenBrightness canWriteSettings=$canWriteSettings sdk=${Build.VERSION.SDK_INT}")
         if(useScreenBrightness) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && canWriteSettings) {
                 setDeviceBrightnessControl(screenSaver)
@@ -63,18 +64,24 @@ constructor(context: Context, private val configuration: Configuration): Context
 
     private fun setDeviceBrightnessControl(screenSaver: Boolean) {
         val canWriteScreenSetting = canWriteScreenSetting()
+        Timber.d("setDeviceBrightnessControl screenSaver=$screenSaver canWriteScreenSetting=$canWriteScreenSetting")
         if(canWriteScreenSetting) {
             setDeviceBrightnessMode(false)
             val screenBrightness = configuration.screenBrightness
             val screenScreenBrightness = configuration.screenScreenSaverBrightness
+            Timber.d("setDeviceBrightnessControl screenBrightness=$screenBrightness screenScreenSaverBrightness=$screenScreenBrightness")
             try {
                 if (screenBrightness in 1..255 && !screenSaver) {
                     Settings.System.putInt(contentResolver, Settings.System.SCREEN_BRIGHTNESS, screenBrightness)
+                    Timber.d("wrote screen_brightness=$screenBrightness")
                 } else if (screenScreenBrightness in 1..255 && screenSaver) {
                     Settings.System.putInt(contentResolver, Settings.System.SCREEN_BRIGHTNESS, screenScreenBrightness)
+                    Timber.d("wrote screen_brightness(dim)=$screenScreenBrightness")
+                } else {
+                    Timber.d("no write: condition not met")
                 }
             } catch (e: SecurityException) {
-                Timber.e(e.message)
+                Timber.e(e, "SecurityException writing screen brightness")
             }
         }
     }
