@@ -213,8 +213,12 @@ class BrowserActivityNative : BaseBrowserActivity(), LifecycleObserver, WebClien
     }
 
     override fun clearCache() {
+        // Match the old WebView.clearCache(true) + CookieManager.removeAllCookies()
+        // behavior: cache + cookies only. ClearFlags.ALL also wipes DOM storage/
+        // IndexedDB, which is where Home Assistant's long-lived auth token lives -
+        // using it here logged the user out on every pull-to-refresh.
         WallPanel.getGeckoRuntime(applicationContext).storageController
-            .clearData(StorageController.ClearFlags.ALL.toLong())
+            .clearData(StorageController.ClearFlags.ALL_CACHES or StorageController.ClearFlags.COOKIES)
     }
 
     override fun reload() {
